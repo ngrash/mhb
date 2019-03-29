@@ -5,6 +5,8 @@ if ARGV.length < 1
 	exit 1
 end
 
+require 'json'
+
 IGNORE_LINES=[/Seite \d+ von \d+/, /Technische Universität Braunschweig | Modulhandbuch: .+/]
 
 SECTIONS=[
@@ -37,12 +39,47 @@ SECTIONS=[
 	"Kommentar für Zuordnung"
 ]
 
+SECTION_TO_KEY={
+	"Modulbezeichnung" => :mod,
+	"Modulnummer" => :no,
+	"Institution" => :inst,
+       	"Modulabkürzung" => :short, 
+	"Workload" => :total_time, 
+	"Präsenzzeit" => :presence_time, 
+	"Semester" => :semester,
+	"Leistungspunkte" => :credit_points,
+	"Selbststudium" => :self_study_time,
+	"Anzahl Semester" => :semester_count,
+	"Pflichtform" => :required,
+	"SWS" => :hours_per_week,
+	"Lehrveranstaltungen/Oberthemen" => :events,
+	"Belegungslogik (wenn alternative Auswahl, etc.)" => :logic,
+	"Lehrende" => :lecturer,
+	"Qualifikationsziele" => :goals,
+	"Inhalte" => :content,
+	"Lernformen" => :pattern,
+	"Prüfungsmodalitäten / Voraussetzungen zur Vergabe von Leistungspunkten" => :credit_points_requirements,
+	"Turnus (Beginn)" => :rotation_begin,
+	"Modulverantwortliche(r)" => :person_in_charge,
+	"Sprache" => :language,
+	"Medienformen" => :media,
+	"Literatur" => :literature,
+	"Erklärender Kommentar" => :comment,
+	"Kategorien (Modulgruppen)" => :categories,
+	"Voraussetzungen für dieses Modul" => :requirements,
+	"Studiengänge" => :paths,
+	"Kommentar für Zuordnung" => :relation_comment
+}
+
 def main
+	modules = []
 	File.open(ARGV[0]) do |file|
 		read_until(file, get_section_at(0))
 
 		while not file.eof? do
 
+			mod = {}
+			modules << mod
 			SECTIONS.each_with_index do |section_or_array, index|
 				if section_or_array.kind_of?(Array)
 					last_subsection = section_or_array.last
@@ -54,19 +91,19 @@ def main
 					values = subsection_content.split("\n").reject { |l| l.strip.empty? }
 
 					section_or_array.each_with_index do |subsection, index|
-						puts "** #{subsection}: #{values[index]}"
+						mod[SECTION_TO_KEY[subsection]] = values[index]
 					end
 				else
 					next_section = get_next_section(index)
 					content = read_until(file, next_section)
 
-					puts "** #{section_or_array}: #{content.strip}"
+					mod[SECTION_TO_KEY[section_or_array]] = content.strip
 				end
 			end
-
-			puts
 		end
 	end
+
+	puts JSON.generate(modules)
 end
 
 def read_until(file, section)
